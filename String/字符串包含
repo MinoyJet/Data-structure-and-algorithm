@@ -1,0 +1,177 @@
+# 字符串包含
+## 题目描述：
+给定两个分别由字母组成的字符串A和字符串B，字符串B的长度比字符串A短。请问，如何最快地判断字符串B中所有字母是否都在字符串A里？
+
+为了简单起见，我们规定输入的字符串只包含大写英文字母，请实现函数bool StringContains(string &A, string &B)
+
+比如，如果是下面两个字符串：
+String 1：ABCD
+String 2：BAD
+答案是true，即String2里的字母在String1里也都有，或者说String2是String1的真子集。
+
+如果是下面两个字符串：
+String 1：ABCD
+String 2：BCE
+答案是false，因为字符串String2里的E字母不在字符串String1里。
+
+同时，如果string1：ABCD，string 2：AA，同样返回true。
+
+## 分析和解法：
+### 解法一：暴力搜索
+首先，最简单的一个办法就是拿String2中的每一个字符都在String1中搜索一边，如果没有当前字符，则退出循环，返回false；否则继续搜索下一个字符，直至结束，返回true。
+**源代码如下：**
+```
+#include<iostream>
+#include<string>
+
+using namespace std;
+
+bool StringContain(string &a, string &b)
+{
+	for(int i = 0; i < b.length(); ++i)
+	{	
+		int j;
+		for(j = 0; (j < a.length()) && (a[j] != b[i]); ++j)
+			;      //这个是循环的结束，不是笔误，当时的一个坑，我找了半天都没看到。。。迷之尴尬 
+		if(j == a.length()) return false;
+	} 
+	return true;
+}
+
+int main()
+{
+	string str1, str2;
+	getline(cin, str1);
+	getline(cin, str2);
+	cout<<StringContain(str1, str2);
+	return 0;
+}
+```
+**分析：**假设n是字符串String1的长度，m是字符串String2的长度，那么此算法，需要O(n*m)次操作。显然，时间开销太大，应该找到一种更好的办法。
+
+### 解法二：排序+线性扫描
+如果想要减少扫描次数的话，先进行排序，再进行线性扫描不失为一个好的办法。但是要注意的一点是这种方法改变了字符串，如不想改变原来的字符串，可以复制一个副本，进行参数传递。
+**源代码如下：**
+```
+#include<iostream>
+#include<string>
+#include<algorithm>
+
+using namespace std;
+
+bool StringContain(string &a, string &b)
+{
+	sort(a.begin(), a.end());
+	sort(b.begin(), b.end());
+	//注意A B中可能包含重复字符，所以注意A下标不要轻易移动
+	for(int pa = 0, pb = 0; pb < b.length();++pb)  
+	{
+		while((pa < a.length()) && (a[pa] < b[pb]))
+			++pa;
+		if((pa >= a.length()) || (a[pa] > b[pb]))
+			return false;
+	}
+	return true; 
+}
+
+int main()
+{
+	string str1, str2;
+	getline(cin, str1);
+	getline(cin, str2);
+	cout<<StringContain(str1, str2);
+	return 0;
+}
+```
+**分析：**两个字符串的排序需要(常规情况)O(m log m) + O(n log n)次操作，之后的线性扫描需要O(m+n)次操作。另外，使用计数排序的算法还可以优化时间复杂度。
+
+### 解法三：素数乘积取余
+这个是我从书上学到的一种很巧妙的方法，它借助于素数乘积取余来判断一个字符所对应的素数是否被包含，由此得出这个字符是否被包含。详情请看下面的解释：
+
+假设有一个仅由字母组成字串，让每个字母与一个素数对应，从2开始，往后类推，A对应2，B对应3，C对应5，......。遍历第一个字串，把每个字母对应素数相乘。最终会得到一个整数。
+
+利用上面字母和素数的对应关系，对应第二个字符串中的字母，然后轮询，用每个字母对应的素数除前面得到的整数。如果结果有余数，说明结果为false。如果整个过程中没有余数，则说明第二个字符串是第一个的子集了（判断是不是真子集，可以比较两个字符串对应的素数乘积，若相等则不是真子集）。
+
+思路总结如下：
+
+* 按照从小到大的顺序，用26个素数分别与字符'A'到'Z'一一对应。
+* 遍历长字符串，求得每个字符对应素数的乘积。
+* 遍历短字符串，判断乘积能否被短字符串中的字符对应的素数整除。
+* 输出结果。
+
+**源代码如下：**
+```
+#include<iostream>
+#include<string>
+
+using namespace std;
+
+bool StringContain(string &a, string &b)
+{
+	const int p[26] = {2,3,5,7,11,13,17,19,23,19,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101};
+	int sum = 1;
+	for(int i = 0; i < a.length(); ++i)
+	{
+		int x = p[a[i] - 'A'];  //仅针对大写字母
+		if(sum % x)    sum *= x; 
+	}
+	for(int i = 0; i < b.length(); ++i)
+	{
+		int y = p[b[i] - 'A'];
+		if(sum % y)    return false;
+	}
+	return true;
+}
+int main()
+{
+	string str1, str2;
+	getline(cin, str1);
+	getline(cin, str2);
+	cout<<StringContain(str1, str2);
+	return 0;
+}
+```
+**分析：**如前所述，算法的时间复杂度为O(m+n)，最好的情况为O(n)（遍历短的字符串的第一个数，与长字符串素数的乘积相除，即出现余数，便可退出程序，返回false），n为长字串的长度，空间复杂度为O(1)。但是此方法只有理论意义，因为整数乘积很大，有溢出风险。
+
+### 解法四：哈希表
+这个也是书上提供的一种思路。
+
+事实上，可以先把长字符串a中的所有字符都放入一个Hashtable里，然后轮询短字符串b，看短字符串b的每个字符是否都在Hashtable里，如果都存在，说明长字符串a包含短字符串b，否则，说明不包含。
+
+再进一步，我们可以对字符串A，用位运算（26bit整数表示)计算出一个“签名”，再用B中的字符到A里面进行查找。
+**源代码如下：**
+```
+#include<iostream>
+#include<string>
+
+using namespace std;
+
+bool StringContain(string &a, string &b)
+{
+	int hash = 0;   //我们用其中的26位来表示是否含有字符 
+	for(int i = 0; i < a.length(); ++i)
+		hash |= (1 << (a[i] - 'A'));   //把1左移若干位，1是标志位，表示有该字符
+	for(int i = 0; i < b.length(); ++i)
+		if((hash & (1 << (b[i] - 'A'))) == 0)   
+			return false;
+	return true;
+}
+
+int main()
+{
+	string str1, str2;
+	getline(cin, str1);
+	getline(cin, str2);
+	cout<<StringContain(str1, str2);
+	return 0;
+}
+```
+**分析：**这个方法的实质是用一个整数代替了hashtable，空间复杂度为O(1)，时间复杂度还是O(n + m)。这是目前来说，最好的方法。
+
+## 特别注意：
+* 一定要注意边界的处理和数据规模的问题，避免因溢出导致的错误
+* 一定要注意对于重复字符的处理
+* 以上程序仅针对于大写字母的处理
+* 如果stringA[i]是小写字母，那么`stringA[i] - 'A'`的值将大于等于32，此时`(1<<(stringA[i] - 'A'))`的结果将超出int的取值范围。也许你会觉得这有什么难的，把`int hash =0;` 重新定义为`long long hash =0; `不就解决问题了吗？然而这是一个坑。因为“<<”是根据它的左值的类型来判断位移后的值是否在有效取值范围内的，我们在代码中使用了`(1<<(stringA[i] - 'A'))`，所以移位操作是根据1的类型（即int）进行判断的，从而左移32位就超出了取值范围。处理方法可参考： [算法练习 - 字符串包含](http://blog.csdn.net/beggar200/article/details/50215035)
+
+**参考资料：《编程之法》The Art of Programming By July**
